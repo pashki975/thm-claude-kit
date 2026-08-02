@@ -1,0 +1,13 @@
+# Room folders — everything you generate while attacking a box lives here.
+# Scans, notes, cracked creds, flags, writeups, downloaded tools: all
+# git-ignored so nothing target-specific or sensitive ever gets committed.
+rooms/*
+
+# ...but keep the empty rooms/ directory itself in the repo so it exists
+# after a fresh clone.
+!rooms/
+!rooms/.gitkeep
+
+# Common local cruft
+*.log
+tools/
