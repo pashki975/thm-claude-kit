@@ -19,6 +19,7 @@ Open 135/139/445 (SMB), 3389 (RDP), 5985 (WinRM), and especially 88 (Kerberos) +
 
 ## 1. Recon
 - /recon as usual. Note the domain name, DC hostname, OS build.
+- Consider /enum-udp too — SNMP can leak users/processes on Windows hosts.
 
 ## 2. AD / SMB enumeration
 - /enum-ad — null/guest sessions, shares, RPC, LDAP, build a user list
@@ -29,6 +30,7 @@ Open 135/139/445 (SMB), 3389 (RDP), 5985 (WinRM), and especially 88 (Kerberos) +
 - Password spray weak/found passwords across users (careful of lockout)
 - Anonymous/guest readable shares — look for creds, configs, scripts
 - Any web app on the box → normal web enum (/enum-web)
+- Any database on the box → /db-enum (MSSQL especially — xp_cmdshell)
 
 ## 4. Situational awareness (once you have ANY valid cred)
 - Run BloodHound collection — let the ad-attack-advisor agent read the results
@@ -48,7 +50,12 @@ Open 135/139/445 (SMB), 3389 (RDP), 5985 (WinRM), and especially 88 (Kerberos) +
   then services, stored creds, kernel last
 - Analyze enum with the win-privesc-advisor agent
 
-## 8. Domain dominance & loot
+## 8. Pivot (if the domain has more hosts to reach)
+- From the compromised host, tunnel to internal targets (/tunnel: ligolo-ng / chisel)
+- Reuse domain creds across the internal range — one cred often unlocks many hosts
+- Record each internal host in notes.md and continue this methodology against it
+
+## 9. Domain dominance & loot
 - DCSync krbtgt if you reach it — note the domain is fully compromised
 - Record all flags (user.txt, root.txt/admin) and creds in notes.md
 - report-writer agent for the writeup

@@ -12,7 +12,8 @@ Follow this flow. Never skip enumeration to jump to exploitation.
 - Create room folder + scans/ + notes.md
 
 ## 1. Recon
-- Full port scan, then targeted -sV -sC on open ports (/recon)
+- Full TCP port scan, then targeted -sV -sC on open ports (/recon)
+- Don't forget UDP — SNMP/TFTP/DNS hide there (/enum-udp). Run it in parallel with TCP enum.
 - Record every open port/service in notes.md
 
 ## 2. Enumerate per service
@@ -22,7 +23,8 @@ Match each open port to its enumeration path:
 - 21 → FTP: try anonymous login
 - 22 → SSH: note version, save creds for later; don't brute unless hinted
 - 25/110/143 → mail
-- 3306/5432/1433 → databases
+- 3306/1433/5432/27017/6379 → databases (/db-enum): creds to reuse + RCE paths
+- 161/69/53 (UDP) → /enum-udp
 - Map service versions to CVEs (cve-researcher agent)
 
 ## 3. Foothold
@@ -32,15 +34,21 @@ Match each open port to its enumeration path:
 
 ## 4. Post-exploitation / privesc
 - Grab the user flag
-- Run local enum (linpeas/winpeas, `id`, `sudo -l`, SUID, cron)
+- Run local enum with the checklist (/linux-privesc): sudo -l, SUID, capabilities, cron/pspy, cred hunting
 - Analyze with privesc-advisor agent
-- Escalate to root/SYSTEM, grab root flag
+- Escalate to root, grab root flag
 
-## 5. Loot & document
+## 5. Pivot (if the room has more than one host)
+- Check the foothold for a second NIC / internal subnet (ip a, ip route, arp -a)
+- Tunnel in (/tunnel) with ligolo-ng, chisel, sshuttle, or SSH forwards
+- Record each internal host in notes.md as a new target and re-run this methodology against it
+
+## 6. Loot & document
 - Record all flags and creds in notes.md
 - Generate writeup (report-writer agent)
 
 ## Rules
-- Stay strictly on the assigned target IP
+- Stay strictly on the assigned target IP/range
 - Enumerate thoroughly before exploiting — most CTF blockers are missed enum
-- When stuck: re-read scan output, try a bigger wordlist, check for vhosts/UDP, revisit versions
+- Reuse found credentials everywhere (SSH/SMB/web/db) — password reuse is rampant on THM
+- When stuck: re-read scan output, try a bigger wordlist, check UDP, check for vhosts, revisit versions
