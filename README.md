@@ -25,9 +25,13 @@ thm/
     ├── commands/           ← slash commands (manual triggers you type)
     │   ├── vpn-check.md    →  /vpn-check
     │   ├── recon.md        →  /recon
+    │   ├── enum-udp.md     →  /enum-udp
     │   ├── enum-web.md     →  /enum-web
     │   ├── enum-smb.md     →  /enum-smb
+    │   ├── db-enum.md      →  /db-enum
     │   ├── listener.md     →  /listener
+    │   ├── linux-privesc.md→  /linux-privesc
+    │   ├── tunnel.md       →  /tunnel
     │   ├── crack.md        →  /crack
     │   ├── notes.md        →  /notes
     │   │   ── Windows/AD ──
@@ -59,7 +63,7 @@ run in a separate context so heavy output doesn't clutter your main session.
 
 ### a. Prerequisites (one time)
 
-```bash
+```
 # Node.js 18+ and Claude Code
 curl -fsSL https://deb.nodesource.com/setup_20.x | sudo bash -
 sudo apt install -y nodejs
@@ -67,6 +71,10 @@ npm install -g @anthropic-ai/claude-code
 
 # Tools the Linux commands assume are present
 sudo apt install -y seclists enum4linux smbclient hashid john hashcat rlwrap exploitdb
+# For UDP + database + pivoting commands:
+sudo apt install -y snmp onesixtyone tftp-hpa proxychains4 chisel mariadb-client postgresql-client redis-tools
+# ligolo-ng and mongosh aren't apt packages — grab ligolo-ng from GitHub releases,
+# mongosh from MongoDB's site. sshuttle: pipx install sshuttle
 
 # Tools the Windows/AD commands assume are present
 sudo apt install -y netexec impacket-scripts evil-winrm enum4linux-ng freerdp2-x11 ldap-utils
@@ -74,20 +82,20 @@ sudo apt install -y netexec impacket-scripts evil-winrm enum4linux-ng freerdp2-x
 pipx install certipy-ad
 pipx install bloodhound
 ```
-
 > Package names vary a little by Kali version. If `netexec` isn't found, it may still be
 > `crackmapexec` (`cme`) on older images, or install with `pipx install netexec`. The
 > commands use `nxc`; alias `cme` to it if needed.
 
 Some tools aren't apt packages — you download them onto the *target* at exploit time:
-**winPEAS**, **PowerUp.ps1**, **PrintSpoofer64.exe**, **GodPotato**. Grab them from their
-GitHub releases and keep them in a `~/thm/tools/` folder to serve over HTTP.
+**winPEAS**, **linpeas**, **pspy**, **PowerUp.ps1**, **PrintSpoofer64.exe**, **GodPotato**,
+**chisel/ligolo agent binaries**. Grab them from their GitHub releases and keep them in a
+`~/thm/tools/` folder to serve over HTTP.
 
 ### b. Drop the kit in place
 
 Put this whole `thm/` folder in your home directory:
 
-```bash
+```
 cp -r thm ~/thm
 chmod +x ~/thm/new-room.sh
 ```
@@ -97,7 +105,7 @@ commands, agents, and skill automatically.** You configure once, use everywhere.
 
 ### c. First run
 
-```bash
+```
 cd ~/thm
 claude          # authenticate on first launch
 ```
@@ -108,7 +116,7 @@ claude          # authenticate on first launch
 
 ### Step 1 — Start a room
 
-```bash
+```
 cd ~/thm
 ./new-room.sh blue          # creates ~/thm/rooms/blue/ with scans/ + notes.md
 cd rooms/blue
@@ -131,6 +139,7 @@ Checks `tun0` is up, shows your VPN IP (you'll need it for reverse shells), and 
 
 ```
 /recon 10.10.123.45
+/enum-udp 10.10.123.45      # UDP hides SNMP/TFTP/DNS — run it alongside the TCP scan
 ```
 
 Full port sweep → targeted service scan on open ports → summary table → notes.md updated →
@@ -147,6 +156,7 @@ Pick the command matching what's open:
 ```
 /enum-web http://10.10.123.45
 /enum-smb 10.10.123.45
+/db-enum 10.10.123.45 mysql        # or mssql/postgres/mongo/redis
 ```
 
 Check versions against known vulns:
@@ -166,13 +176,27 @@ a **separate terminal**, and TTY-upgrade steps for after you land the shell.
 
 ### Step 6 — Privilege escalation
 
-Run your local enum on the box (linpeas, `sudo -l`, etc.), paste the output back, then:
+```
+/linux-privesc      # walks the checklist: sudo -l, SUID, caps, cron/pspy, cred hunting
+```
+
+Run the enum it lists, paste the output back, then:
 
 ```
 use the privesc-advisor agent on this output: <paste>
 ```
 
-### Step 7 — Document
+### Step 7 — Pivot (multi-host rooms)
+
+If a second internal host appears, tunnel to it and keep going:
+
+```
+/tunnel 172.16.0.0/24     # ligolo-ng / chisel / sshuttle / SSH forwards
+```
+
+Record each internal host in notes.md as a new target and re-run the methodology against it.
+
+### Step 8 — Document
 
 ```
 /notes                                   # keep notes.md current anytime
@@ -188,7 +212,7 @@ what next?
 ```
 
 The `thm-methodology` skill kicks in and gives you the next methodical step — usually "you
-skipped an enumeration path," which is true more often than not.
+skipped an enumeration path" (often UDP), which is true more often than not.
 
 ---
 
@@ -224,7 +248,7 @@ Null/guest sessions, shares, RPC, LDAP, and a harvested user list (`users.txt`).
 ```
 
 AS-REP roasting needs no creds — it finds users with pre-auth disabled and hands you a hash
-to crack. Also try password spraying and reading anonymous shares.
+to crack. Also try password spraying, reading anonymous shares, and `/db-enum` if MSSQL is up.
 
 ### Step 4 — Once you have any valid cred
 
@@ -263,55 +287,62 @@ use the win-privesc-advisor agent on this output: <paste whoami /priv + winPEAS>
 `SeImpersonatePrivilege` → a **Potato attack** is the most common THM Windows privesc — the
 advisor gives you the exact `PrintSpoofer64.exe` line.
 
-### Step 7 — Domain dominance & document
+### Step 7 — Pivot & domain dominance
 
-DCSync `krbtgt` if you reach it (full domain compromise), record flags in `notes.md`, then
+Domain rooms pivot constantly — from the compromised host, `/tunnel` to internal targets and
+reuse domain creds across the range (one cred often unlocks many hosts). Then DCSync `krbtgt`
+if you reach it (full domain compromise), record flags in `notes.md`, and
 `use the report-writer agent`.
 
 ---
 
 ## 4. Command quick reference
 
-| Command | Argument | Does |
-|---------|----------|------|
-| `/vpn-check` | target IP | Verify VPN up + target reachable, show your tun0 IP |
-| `/recon` | target IP | Staged nmap (all ports → service scan), summarized |
-| `/enum-web` | URL | whatweb + ffuf dirs + nikto + common files |
-| `/enum-smb` | target IP | enum4linux + share listing + smb nmap scripts |
-| `/listener` | port (opt) | Reverse shell payloads + listener + TTY upgrade steps |
-| `/crack` | hash or file | Identify hash, pick john/hashcat, crack it |
-| `/notes` | — | Update notes.md from scans + conversation |
-| **`/enum-ad`** | target IP | Windows/AD: SMB, LDAP, RPC, user harvesting |
-| **`/kerberos`** | DC-IP DOMAIN [users/creds] | AS-REP roast + Kerberoast |
-| **`/win-shell`** | IP user pass/hash | Get a session: evil-winrm / psexec / RDP |
-| **`/win-privesc`** | — | Windows local privesc checklist + analysis |
+| Command            | Argument                   | Does                                                  |
+| ------------------ | -------------------------- | ----------------------------------------------------- |
+| `/vpn-check`       | target IP                  | Verify VPN up + target reachable, show your tun0 IP   |
+| `/recon`           | target IP                  | Staged nmap (all ports → service scan), summarized    |
+| `/enum-udp`        | target IP                  | UDP scan + SNMP/TFTP/DNS/IKE follow-up                |
+| `/enum-web`        | URL                        | whatweb + ffuf dirs + nikto + common files            |
+| `/enum-smb`        | target IP                  | enum4linux + share listing + smb nmap scripts         |
+| `/db-enum`         | IP type [creds]            | MySQL/MSSQL/Postgres/Mongo/Redis enum + RCE paths     |
+| `/listener`        | port (opt)                 | Reverse shell payloads + listener + TTY upgrade steps |
+| `/linux-privesc`   | —                          | Linux local privesc checklist + analysis              |
+| `/tunnel`          | subnet/target (opt)        | Pivot in: ligolo-ng / chisel / sshuttle / SSH forward |
+| `/crack`           | hash or file               | Identify hash, pick john/hashcat, crack it            |
+| `/notes`           | —                          | Update notes.md from scans + conversation             |
+| **`/enum-ad`**     | target IP                  | Windows/AD: SMB, LDAP, RPC, user harvesting           |
+| **`/kerberos`**    | DC-IP DOMAIN [users/creds] | AS-REP roast + Kerberoast                             |
+| **`/win-shell`**   | IP user pass/hash          | Get a session: evil-winrm / psexec / RDP              |
+| **`/win-privesc`** | —                          | Windows local privesc checklist + analysis            |
 
-| Agent | Invoke with | Does |
-|-------|-------------|------|
-| recon-parser | "use the recon-parser agent" | Structures raw scan output into findings |
-| cve-researcher | "use the cve-researcher agent" | Maps versions → CVEs, checks searchsploit |
-| privesc-advisor | "use the privesc-advisor agent" | Ranks Linux privesc vectors from enum output |
-| report-writer | "use the report-writer agent" | Builds writeup.md from notes + scans |
+| Agent                   | Invoke with                         | Does                                             |
+| ----------------------- | ----------------------------------- | ------------------------------------------------ |
+| recon-parser            | "use the recon-parser agent"        | Structures raw scan output into findings         |
+| cve-researcher          | "use the cve-researcher agent"      | Maps versions → CVEs, checks searchsploit        |
+| privesc-advisor         | "use the privesc-advisor agent"     | Ranks Linux privesc vectors from enum output     |
+| report-writer           | "use the report-writer agent"       | Builds writeup.md from notes + scans             |
 | **win-privesc-advisor** | "use the win-privesc-advisor agent" | Ranks Windows privesc (tokens, services, kernel) |
-| **ad-attack-advisor** | "use the ad-attack-advisor agent" | Plans AD attack path from BloodHound/enum |
+| **ad-attack-advisor**   | "use the ad-attack-advisor agent"   | Plans AD attack path from BloodHound/enum        |
 
 Two skills load automatically by target type: `thm-methodology` (Linux) and
-`windows-ad-methodology` (Windows/AD). You don't invoke skills manually — Claude picks the
-right one and it drives what `what next?` recommends.
+`windows-ad-methodology` (Windows/AD). Both route to the UDP, database, privesc-checklist, and
+pivoting commands at the right step. You don't invoke skills manually — Claude picks the right
+one and it drives what `what next?` recommends.
 
 ---
 
 ## 5. Customizing
 
 - **Edit any command** — they're just markdown prompt templates. `$ARGUMENTS` is replaced by
-  whatever you type after the slash command. Change wordlist paths, add flags, whatever fits
-  your style.
+whatever you type after the slash command. Change wordlist paths, add flags, whatever fits
+your style.
 - **Add a command** — drop a new `.md` in `.claude/commands/`. The filename becomes the command
-  name. The `description:` in the frontmatter shows in the `/` menu.
+name. The `description:` in the frontmatter shows in the `/` menu.
 - **Add an agent** — drop a new `.md` in `.claude/agents/`. Keep the `tools:` list minimal (only
-  what it needs) so it stays focused.
+what it needs) so it stays focused.
 - **Per-room overrides** — a `.claude/` folder inside a specific room folder overrides the shared
-  one for that room only.
+one for that room only.
 
 ---
 
@@ -321,15 +352,15 @@ The kit is laid out so you can safely put it in a git repo and share/back up you
 without ever leaking *target data*.
 
 - **Tracked** (safe to commit/push): `README.md`, `CLAUDE.md`, `WINDOWS-CHEATSHEET.md`,
-  `new-room.sh`, and the whole `.claude/` folder — your commands, agents, and skills.
+`new-room.sh`, and the whole `.claude/` folder — your commands, agents, and skills.
 - **Ignored** (never committed): everything under `rooms/`. That's where every box's scans,
-  notes, cracked creds, flags, and writeups live. `.gitignore` excludes `rooms/*` but keeps
-  the empty `rooms/` directory itself (via `.gitkeep`) so it survives a fresh clone. `tools/`
-  and `*.log` are ignored too.
+notes, cracked creds, flags, and writeups live. `.gitignore` excludes `rooms/*` but keeps
+the empty `rooms/` directory itself (via `.gitkeep`) so it survives a fresh clone. `tools/`
+and `*.log` are ignored too.
 
 To start tracking it:
 
-```bash
+```
 cd ~/thm
 git init
 git add .
@@ -346,15 +377,19 @@ config — git-ignoring them changes nothing about how the tools work, only what
 ## 6. Notes & gotchas
 
 - **Wordlist paths** assume `seclists` is installed at `/usr/share/seclists/`. Adjust if yours
-  differ.
+differ.
 - **Permission prompts**: Claude Code asks before running commands by default. That's a good
-  thing here — it keeps scope in check. If you run with `--dangerously-skip-permissions`, only do
-  it in a throwaway VM and understand you're auto-approving arbitrary commands.
+thing here — it keeps scope in check. If you run with `--dangerously-skip-permissions`, only do
+it in a throwaway VM and understand you're auto-approving arbitrary commands.
 - **GUI tools** (Burp, Wireshark) aren't driven by Claude Code — it's CLI-only. It can use
-  `tshark`, `mitmproxy`, or Burp's REST API instead.
+`tshark`, `mitmproxy`, or Burp's REST API instead.
 - **The listener runs in its own terminal**, not inside Claude Code — `nc -lvnp` blocks, so keep
-  a spare terminal open for the catch.
+a spare terminal open for the catch.
+- **UDP + pivoting are the two most-missed paths** — if a Linux box has you stumped, check
+`/enum-udp` output, and if the network has more than one host, `/tunnel` in.
+- **Reuse creds everywhere** — SSH/SMB/web/db password reuse is rampant on THM. `/db-enum`
+findings in particular tend to unlock other services.
 - **Keep notes.md honest** — the agents (especially report-writer and privesc-advisor) read it,
-  so the better your notes, the better their output.
+so the better your notes, the better their output.
 
 Happy hacking — stay on scope.
