@@ -23,12 +23,15 @@ thm/
 │   └── .gitkeep            ← keeps the empty dir in the repo
 └── .claude/
     ├── commands/           ← slash commands (manual triggers you type)
+    │   ├── start.md        →  /start        (classify the room first)
     │   ├── vpn-check.md    →  /vpn-check
     │   ├── recon.md        →  /recon
     │   ├── enum-udp.md     →  /enum-udp
     │   ├── enum-web.md     →  /enum-web
+    │   ├── web-recon.md    →  /web-recon     (vhosts / subdomains / cert SANs)
     │   ├── enum-smb.md     →  /enum-smb
     │   ├── db-enum.md      →  /db-enum
+    │   ├── steg.md         →  /steg          (offline file/image analysis)
     │   ├── listener.md     →  /listener
     │   ├── linux-privesc.md→  /linux-privesc
     │   ├── tunnel.md       →  /tunnel
@@ -47,15 +50,39 @@ thm/
     │   ├── win-privesc-advisor.md   (Windows)
     │   └── ad-attack-advisor.md     (Active Directory)
     └── skills/
-        ├── thm-methodology/SKILL.md          ← Linux game plan
-        └── windows-ad-methodology/SKILL.md   ← Windows/AD game plan
+        ├── thm-trainer/SKILL.md               ← the decision loop (runs first, every room)
+        ├── thm-methodology/SKILL.md           ← Linux game plan
+        └── windows-ad-methodology/SKILL.md    ← Windows/AD game plan
 ```
 
 **Commands** = things you trigger by typing `/name`. Fast, predictable, one job each.
 **Agents** = specialists Claude hands a focused task to ("use the cve-researcher agent"). They
 run in a separate context so heavy output doesn't clutter your main session.
-**Skill** = the connective tissue. It tells Claude the *order of operations* so when you ask
-"what next?" you get a methodical answer instead of a guess.
+**Skills** = the connective tissue. They tell Claude *how to think and in what order* so when
+you ask "what next?" you get a methodical answer instead of a guess.
+
+### The trainer loop (read this once)
+
+The most important skill is `thm-trainer` — the decision loop that runs on **every** room
+before any tool does. It exists because the #1 failure mode is an agent confidently doing
+things that lead nowhere: parallel scans, sshing into a box that was never about shells, an
+hour of motion with no progress. The loop fixes that by forcing five beats:
+
+```
+1. CLASSIFY   → what is this room teaching? what's the goal (flag string vs shell)?
+2. OBSERVE    → the lightest thing that fits the class — don't over-scan
+3. HYPOTHESIZE→ "the way in is probably X, because Y" (one sentence, out loud)
+4. TEST       → one focused action whose result decides the next move
+5. DECIDE     → new info → loop; goal met → STOP; no new info → reclassify
+```
+
+The rule underneath it all: **every action should change what you do next.** If a scan
+wouldn't change your plan, don't run it. Being *stuck* = repeating actions with no new
+information — the signal to reclassify, not to scan harder.
+
+You kick a room off with **`/start`** (below), which forces beat 1 — classify and name the
+goal — before Claude touches a tool. The `thm-trainer` skill then drives the loop, reaching
+for the methodology skills and the enumeration commands as its tools.
 
 ---
 
@@ -127,7 +154,17 @@ All room folders live under `rooms/`, which is git-ignored — so your scans, no
 cracked creds, and flags never get committed. The shared `.claude/` config at the repo
 root **is** tracked, and rooms still inherit it because `rooms/` sits underneath it.
 
-### Step 2 — Confirm connectivity
+### Step 2 — Classify the room, then confirm connectivity
+
+Start by pointing Claude at the room so it classifies before scanning:
+
+```
+/start https://tryhackme.com/room/<room>     # or paste the room description
+```
+
+It reads the room card, states the category and the goal (flag vs shell), sets up
+`/etc/hosts` if there's a domain, and gives you a plan to approve — all before running a tool.
+Then check the line:
 
 ```
 /vpn-check 10.10.123.45
@@ -151,12 +188,14 @@ use the recon-parser agent on the latest scans
 
 ### Step 4 — Enumerate per service
 
-Pick the command matching what's open:
+Pick the command matching what's open (and what the room is about):
 
 ```
 /enum-web http://10.10.123.45
+/web-recon futurevera.thm          # vhosts/subdomains/cert SANs — when a domain is in play
 /enum-smb 10.10.123.45
 /db-enum 10.10.123.45 mysql        # or mssql/postgres/mongo/redis
+/steg ./downloaded-image.png       # when the room hands you a file to analyze
 ```
 
 Check versions against known vulns:
@@ -300,12 +339,15 @@ if you reach it (full domain compromise), record flags in `notes.md`, and
 
 | Command            | Argument                   | Does                                                  |
 | ------------------ | -------------------------- | ----------------------------------------------------- |
+| `/start`           | room URL or description    | Classify the room + name the goal BEFORE any tool     |
 | `/vpn-check`       | target IP                  | Verify VPN up + target reachable, show your tun0 IP   |
 | `/recon`           | target IP                  | Staged nmap (all ports → service scan), summarized    |
 | `/enum-udp`        | target IP                  | UDP scan + SNMP/TFTP/DNS/IKE follow-up                |
 | `/enum-web`        | URL                        | whatweb + ffuf dirs + nikto + common files            |
+| `/web-recon`       | domain or IP               | Vhost/subdomain fuzzing + cert SANs + takeover check  |
 | `/enum-smb`        | target IP                  | enum4linux + share listing + smb nmap scripts         |
 | `/db-enum`         | IP type [creds]            | MySQL/MSSQL/Postgres/Mongo/Redis enum + RCE paths     |
+| `/steg`            | file or dir                | Offline file/image analysis (metadata, embedded, LSB) |
 | `/listener`        | port (opt)                 | Reverse shell payloads + listener + TTY upgrade steps |
 | `/linux-privesc`   | —                          | Linux local privesc checklist + analysis              |
 | `/tunnel`          | subnet/target (opt)        | Pivot in: ligolo-ng / chisel / sshuttle / SSH forward |
@@ -325,10 +367,12 @@ if you reach it (full domain compromise), record flags in `notes.md`, and
 | **win-privesc-advisor** | "use the win-privesc-advisor agent" | Ranks Windows privesc (tokens, services, kernel) |
 | **ad-attack-advisor**   | "use the ad-attack-advisor agent"   | Plans AD attack path from BloodHound/enum        |
 
-Two skills load automatically by target type: `thm-methodology` (Linux) and
-`windows-ad-methodology` (Windows/AD). Both route to the UDP, database, privesc-checklist, and
-pivoting commands at the right step. You don't invoke skills manually — Claude picks the right
-one and it drives what `what next?` recommends.
+Three skills load automatically. `thm-trainer` is the decision loop that runs first on every
+room (classify → observe → hypothesize → test → decide). Then `thm-methodology` (Linux) or
+`windows-ad-methodology` (Windows/AD) supplies the ordered steps, routing to the UDP, web-recon,
+database, steg, privesc-checklist, and pivoting commands as needed. You don't invoke skills
+manually — Claude picks them and they drive what `what next?` recommends. When Claude starts
+wandering, the phrase that snaps it back is: **"you're churning — reclassify."**
 
 ---
 
