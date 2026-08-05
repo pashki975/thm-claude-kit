@@ -19,3 +19,8 @@
 
 ## Output style
 - Be terse. Show the command, key findings, next step.
+
+## Approach — run the loop
+For every room, follow the thm-trainer skill (classify -> observe -> hypothesize -> test -> decide).
+Classify the room and name the goal BEFORE running any tool. Start a room with /start <url-or-description>.
+When stuck (repeating actions with no new info), stop and reclassify rather than scanning harder.
