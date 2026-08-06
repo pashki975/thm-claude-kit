@@ -23,7 +23,7 @@ thm/
 │   └── .gitkeep            ← keeps the empty dir in the repo
 └── .claude/
     ├── commands/           ← slash commands (manual triggers you type)
-    │   ├── start.md        →  /start        (classify the room first)
+    │   ├── start.md        →  /start        (room coach: setup + teach you through it)
     │   ├── vpn-check.md    →  /vpn-check
     │   ├── recon.md        →  /recon
     │   ├── enum-udp.md     →  /enum-udp
@@ -80,9 +80,13 @@ The rule underneath it all: **every action should change what you do next.** If 
 wouldn't change your plan, don't run it. Being *stuck* = repeating actions with no new
 information — the signal to reclassify, not to scan harder.
 
-You kick a room off with **`/start`** (below), which forces beat 1 — classify and name the
-goal — before Claude touches a tool. The `thm-trainer` skill then drives the loop, reaching
-for the methodology skills and the enumeration commands as its tools.
+You kick a room off with **`/start`** (below). It's a **playing coach**, not an autosolver: it
+does the mechanical setup (VPN check, `/etc/hosts`, notes), classifies the room and names the
+goal, then teaches you through it one step at a time — explaining *why* each step, pointing you
+at the right kit command, and letting **you** run it. It reads your level: light and terse when
+you're flowing, and when you're stuck it drops into drive mode, reasons through the loop out
+loud, and walks you through the next move in detail. The `thm-trainer` skill supplies the loop
+it coaches from.
 
 ---
 
@@ -154,17 +158,23 @@ All room folders live under `rooms/`, which is git-ignored — so your scans, no
 cracked creds, and flags never get committed. The shared `.claude/` config at the repo
 root **is** tracked, and rooms still inherit it because `rooms/` sits underneath it.
 
-### Step 2 — Classify the room, then confirm connectivity
+### Step 2 — Start the coach
 
-Start by pointing Claude at the room so it classifies before scanning:
+Point Claude at the room. `/start` is your playing coach for the whole room:
 
 ```
 /start https://tryhackme.com/room/<room>     # or paste the room description
 ```
 
-It reads the room card, states the category and the goal (flag vs shell), sets up
-`/etc/hosts` if there's a domain, and gives you a plan to approve — all before running a tool.
-Then check the line:
+It does the setup (VPN check, `/etc/hosts` if there's a domain, seeds `notes.md`), classifies
+the room, names the goal (flag vs shell), then lays out the game plan and coaches you into the
+first step — explaining why it's first and which command to run. From there it guides you one
+step per turn: you run each command and paste the output, it teaches you to read it and points
+you at the next move. It stays light when you're flowing and drives harder when you're stuck.
+You can still run the individual commands below yourself at any time; `/start` is the guided
+way through.
+
+`/vpn-check` is folded into `/start`'s setup, but you can also run it standalone:
 
 ```
 /vpn-check 10.10.123.45
@@ -339,7 +349,7 @@ if you reach it (full domain compromise), record flags in `notes.md`, and
 
 | Command            | Argument                   | Does                                                  |
 | ------------------ | -------------------------- | ----------------------------------------------------- |
-| `/start`           | room URL or description    | Classify the room + name the goal BEFORE any tool     |
+| `/start`           | room URL or description    | Playing coach: setup + teach you through the room step by step |
 | `/vpn-check`       | target IP                  | Verify VPN up + target reachable, show your tun0 IP   |
 | `/recon`           | target IP                  | Staged nmap (all ports → service scan), summarized    |
 | `/enum-udp`        | target IP                  | UDP scan + SNMP/TFTP/DNS/IKE follow-up                |
@@ -372,7 +382,9 @@ room (classify → observe → hypothesize → test → decide). Then `thm-metho
 `windows-ad-methodology` (Windows/AD) supplies the ordered steps, routing to the UDP, web-recon,
 database, steg, privesc-checklist, and pivoting commands as needed. You don't invoke skills
 manually — Claude picks them and they drive what `what next?` recommends. When Claude starts
-wandering, the phrase that snaps it back is: **"you're churning — reclassify."**
+wandering, the phrase that snaps it back is: **"you're churning — reclassify."** `/start` is the
+coach that walks you through this loop out loud; the skill is what it coaches from, and it also
+applies when you ask `what next?` without going through `/start`.
 
 ---
 
