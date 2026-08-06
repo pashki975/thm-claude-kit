@@ -1,27 +1,26 @@
 ---
-description: UDP port scan + follow-up enumeration of common UDP services
+description: UDP scan + service follow-up — top ports first, full sweep only when justified
 ---
 
 Scan and enumerate UDP services on: $ARGUMENTS  (target IP)
 
-UDP is slow, so scan the top ports first and only go wider if nothing turns up.
-Save output to scans/ and update notes.md.
+## The gate (before any HEAVY step)
+UDP scanning is slow — that's exactly why the gate matters. Reason first: did the top-ports
+scan already find the service we needed? A full 65535-port UDP sweep is HEAVY and usually
+low-yield — only justify it if the top-ports scan came up empty AND the room points at UDP.
+State the hypothesis before the full sweep; if weak, skip and say why.
 
-## 1. Scan
-- `nmap -sU --top-ports 50 -T4 $ARGUMENTS -oN scans/nmap-udp.txt`
-- If time allows and nothing found: `nmap -sU -p- --min-rate 1000 $ARGUMENTS` (slow)
+## CHEAP — always
+1. `nmap -sU --top-ports 50 -T4 $ARGUMENTS -oN scans/nmap-udp.txt`
+2. Follow up on whatever opened (these are cheap and targeted):
+   - 161 SNMP → `snmpwalk -v2c -c public $ARGUMENTS` (users/processes leak creds)
+   - 69 TFTP → `tftp $ARGUMENTS` ; 53 DNS → `dig axfr @$ARGUMENTS <domain>`
+   - 500 IKE → `ike-scan $ARGUMENTS` ; 123 NTP → `ntpq -p $ARGUMENTS`
 
-## 2. Follow up per open UDP service
-- 161 SNMP → try community strings, then walk:
-  - `onesixtyone $ARGUMENTS public private community`
-  - `snmpwalk -v2c -c public $ARGUMENTS | tee scans/snmpwalk.txt`
-  - `snmpwalk -v2c -c public $ARGUMENTS 1.3.6.1.4.1.77.1.2.25`  (users)
-  - `snmpwalk -v2c -c public $ARGUMENTS 1.3.6.1.2.1.25.4.2.1.2` (running processes — creds in cmdlines!)
-- 69 TFTP → `tftp $ARGUMENTS` then try `get`/`put` on known filenames
-- 53 DNS → attempt zone transfer: `dig axfr @$ARGUMENTS <domain>`
-- 500 IKE → `ike-scan $ARGUMENTS`
-- 123 NTP → `ntpq -p $ARGUMENTS`
+## HEAVY — gate it
+3. Full UDP sweep `nmap -sU -p- --min-rate 1000 $ARGUMENTS` — ONLY if top-ports found nothing
+   and there's a real reason to think a high UDP port matters. Otherwise skip and move on.
 
-## 3. Summarize
-Table: port | service | finding. SNMP process/username leaks and TFTP file access are
-the usual wins — call those out explicitly and record any creds in notes.md.
+## Summarize
+Lead with what the top-ports scan + follow-ups found. Note if you skipped the full sweep and why.
+Record SNMP/TFTP leaks in notes.md.

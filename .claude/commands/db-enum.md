@@ -1,39 +1,34 @@
 ---
-description: Enumerate and exploit a database service (MySQL/MSSQL/Postgres/Mongo/Redis)
+description: Enumerate/exploit a database — connect and read first, heavy brute only when justified
 ---
 
 Enumerate the database at: $ARGUMENTS
 Expected: <target-IP> <type> [user:pass]  (type = mysql|mssql|postgres|mongo|redis)
 
-Connect, enumerate, and look for the two prizes: credentials to reuse, and command
-execution. Save findings to notes.md. Try discovered creds elsewhere on the box.
+## The gate (before any HEAVY step)
+Reason first: once connected, reading the schema and hunting stored creds is cheap and high
+value. HEAVY steps (credential brute-forcing the DB login, mass-dumping every table) should be
+gated — if you already have creds or the interesting table is obvious, don't brute or dump
+everything. State the hypothesis; skip low-yield heavy steps and say why.
 
-## MySQL / MariaDB (3306)
-- `mysql -h <IP> -u <user> -p<pass>`  (or try root with blank/weak pass)
-- Enum: `SHOW DATABASES; SELECT user,authentication_string FROM mysql.user;`
-- File read/write (if FILE priv): `SELECT LOAD_FILE('/etc/passwd');`
-  `... INTO OUTFILE '/var/www/html/sh.php'` for a webshell
-- Crack any dumped password hashes with hashcat
+## CHEAP — always (once you can connect)
+1. Connect with what you have (provided creds, or try weak/blank on the relevant engine).
+2. Enumerate structure: list databases/tables, dump the user/creds table, look for anything
+   app-specific. This is usually where the win is.
+3. Reuse any recovered creds against SSH/SMB/web — password reuse is rampant.
 
-## MSSQL (1433)
-- `impacket-mssqlclient <user>:<pass>@<IP> -windows-auth`
-- Command exec: `enable_xp_cmdshell` then `xp_cmdshell 'whoami'`
-- Or `nxc mssql <IP> -u <user> -p <pass> -x 'whoami'`
-- Try impersonation (`EXECUTE AS`) and linked servers for privesc
+## HEAVY — gate each
+4. Brute-forcing the DB login — ONLY if unauthenticated access fails and it's the intended path.
+5. RCE paths (xp_cmdshell / INTO OUTFILE / COPY FROM PROGRAM / Redis config write) — these are
+   powerful but noisy; use when you actually need code exec, and say why. See the per-engine
+   commands below.
 
-## PostgreSQL (5432)
-- `psql -h <IP> -U <user>`  then `\l`, `\du`, `\dt`
-- RCE via `COPY ... FROM PROGRAM 'id'` (needs superuser) or large-object file write
-
-## MongoDB (27017)
-- `mongosh --host <IP>` (often no auth) → `show dbs; use <db>; db.<coll>.find()`
-- Look for stored app credentials / user tables
-
-## Redis (6379)
-- `redis-cli -h <IP>` → `INFO`, `CONFIG GET dir`, `KEYS *`
-- Unauth Redis RCE: write an SSH key or cron job via `CONFIG SET dir` + `SET`/`SAVE`
+## Per-engine reference
+- MySQL: `mysql -h <IP> -u <user> -p<pass>` ; FILE priv → LOAD_FILE / INTO OUTFILE webshell
+- MSSQL: `impacket-mssqlclient <user>:<pass>@<IP> -windows-auth` ; enable_xp_cmdshell
+- Postgres: `psql -h <IP> -U <user>` ; COPY ... FROM PROGRAM for RCE (needs superuser)
+- Mongo: `mongosh --host <IP>` (often no auth) ; show dbs / find()
+- Redis: `redis-cli -h <IP>` ; INFO / CONFIG GET dir ; unauth write-key/cron RCE
 
 ## Summarize
-Report: creds found | data of interest | RCE achieved (yes/no + method). If you got
-command exec, move to getting a proper shell (/listener or /win-shell). Reuse any DB
-creds against SSH/SMB/web — password reuse is extremely common on THM.
+Lead with schema + creds found. For heavy/RCE steps, say ran/skipped and why. Update notes.md.

@@ -22,6 +22,22 @@ flowing, you keep it light and stay out of my way.
      last thing failed, what the options are, and walk me through the next step in detail.
    Default to the middle and adjust based on my responses.
 
+## The tool gate — apply the loop to WHICH command you recommend, not just my steps
+Before recommending any enumeration/scan command (or a heavy step inside one like ffuf/nikto),
+run the observe→hypothesize gate yourself and say the result in one line:
+- What do we ALREADY know from what we've seen so far?
+- Would this command/step find anything new, or would it just churn?
+- If we already have the info it would gather (e.g. we've read the full page source and it's a
+  bespoke single-page app that names its own /api endpoints), DON'T recommend a directory
+  brute-force or vuln sweep "for completeness." Say why it's low-yield and recommend the move
+  that actually pays off (read the JS, hit the named endpoints, test those params).
+Weigh the option, give the why, and suggest the better alternative when the obvious command is
+low-yield. Heavy scans are opt-in for when cheaper observation has left a real gap — never the
+reflexive default. And never guess a wordlist/file path: check it exists first (CLAUDE.md rule).
+
+When you hand me a kit command that has heavy steps, remind me it will gate them the same way —
+so I'm not surprised if it recommends skipping ffuf/nikto on a target we already understand.
+
 ## Phase 1 — Setup (this part you DO run)
 Mechanical prep only — not investigation:
 1. If $ARGUMENTS is a URL, fetch and read the room card (title, tags, task text, hints). If it's

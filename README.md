@@ -88,6 +88,19 @@ you're flowing, and when you're stuck it drops into drive mode, reasons through 
 loud, and walks you through the next move in detail. The `thm-trainer` skill supplies the loop
 it coaches from.
 
+### Cheap vs heavy: scans are gated, not reflexive
+
+Enumeration commands split their steps into **cheap** (always worth it — read the page source,
+fingerprint the stack, list shares) and **heavy** (directory brute-force, nikto, full UDP sweep,
+mass table dumps). Before any heavy step, the command — and the coach, when choosing what to
+recommend — applies the observe→hypothesize gate: *given what we already know, would this scan
+find anything new, or just churn?* If you've already read the full source of a bespoke
+single-page app that names its own `/api` endpoints, a 200k-word ffuf brute-force and a nikto
+sweep are low-yield — so they're skipped with a one-line reason and offered as opt-in, and the
+command points you at the move that actually pays off instead. Heavy scans are opt-in for when
+cheaper observation left a real gap, never the default. (This is the fix for the classic failure
+of firing every checklist step "for completeness" against a target you already understand.)
+
 ---
 
 ## 2. Install
@@ -352,11 +365,11 @@ if you reach it (full domain compromise), record flags in `notes.md`, and
 | `/start`           | room URL or description    | Playing coach: setup + teach you through the room step by step |
 | `/vpn-check`       | target IP                  | Verify VPN up + target reachable, show your tun0 IP   |
 | `/recon`           | target IP                  | Staged nmap (all ports → service scan), summarized    |
-| `/enum-udp`        | target IP                  | UDP scan + SNMP/TFTP/DNS/IKE follow-up                |
-| `/enum-web`        | URL                        | whatweb + ffuf dirs + nikto + common files            |
+| `/enum-udp`        | target IP                  | UDP top-ports + follow-up; full sweep gated to when it'll pay off |
+| `/enum-web`        | URL                        | Reads source first; ffuf/nikto gated — skipped when low-yield  |
 | `/web-recon`       | domain or IP               | Vhost/subdomain fuzzing + cert SANs + takeover check  |
-| `/enum-smb`        | target IP                  | enum4linux + share listing + smb nmap scripts         |
-| `/db-enum`         | IP type [creds]            | MySQL/MSSQL/Postgres/Mongo/Redis enum + RCE paths     |
+| `/enum-smb`        | target IP                  | Null/guest share listing first; heavy enum gated      |
+| `/db-enum`         | IP type [creds]            | Connect + read schema first; brute/RCE steps gated    |
 | `/steg`            | file or dir                | Offline file/image analysis (metadata, embedded, LSB) |
 | `/listener`        | port (opt)                 | Reverse shell payloads + listener + TTY upgrade steps |
 | `/linux-privesc`   | —                          | Linux local privesc checklist + analysis              |
