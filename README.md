@@ -187,6 +187,12 @@ you at the next move. It stays light when you're flowing and drives harder when 
 You can still run the individual commands below yourself at any time; `/start` is the guided
 way through.
 
+The coach tags its guidance so it stands out from command output in the chat: 🎯 **COACH** (what
+to do now), 💡 **WHY** (the reasoning), 🧭 **READ** (how to interpret output you pasted), ⚠️
+**STUCK** (the reclassify moment), 📝 **NOTE** (saved to notes.md), ✅ **GOAL** (you've hit the
+finish). Commands to run stay in plain code blocks, so it's always clear what's coaching versus
+what you type.
+
 `/vpn-check` is folded into `/start`'s setup, but you can also run it standalone:
 
 ```
