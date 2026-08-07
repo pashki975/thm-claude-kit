@@ -32,6 +32,7 @@ thm/
     │   ├── enum-smb.md     →  /enum-smb
     │   ├── db-enum.md      →  /db-enum
     │   ├── steg.md         →  /steg          (offline file/image analysis)
+    │   ├── pcap.md         →  /pcap          (tshark traffic/capture analysis)
     │   ├── listener.md     →  /listener
     │   ├── linux-privesc.md→  /linux-privesc
     │   ├── tunnel.md       →  /tunnel
@@ -115,6 +116,8 @@ npm install -g @anthropic-ai/claude-code
 
 # Tools the Linux commands assume are present
 sudo apt install -y seclists enum4linux smbclient hashid john hashcat rlwrap exploitdb
+# For pcap analysis (/pcap):
+sudo apt install -y tshark
 # For UDP + database + pivoting commands:
 sudo apt install -y snmp onesixtyone tftp-hpa proxychains4 chisel mariadb-client postgresql-client redis-tools
 # ligolo-ng and mongosh aren't apt packages — grab ligolo-ng from GitHub releases,
@@ -377,6 +380,7 @@ if you reach it (full domain compromise), record flags in `notes.md`, and
 | `/enum-smb`        | target IP                  | Null/guest share listing first; heavy enum gated      |
 | `/db-enum`         | IP type [creds]            | Connect + read schema first; brute/RCE steps gated    |
 | `/steg`            | file or dir                | Offline file/image analysis (metadata, embedded, LSB) |
+| `/pcap`            | .pcap file or "live <if>"  | tshark: overview → creds/files/streams; gated digs    |
 | `/listener`        | port (opt)                 | Reverse shell payloads + listener + TTY upgrade steps |
 | `/linux-privesc`   | —                          | Linux local privesc checklist + analysis              |
 | `/tunnel`          | subnet/target (opt)        | Pivot in: ligolo-ng / chisel / sshuttle / SSH forward |

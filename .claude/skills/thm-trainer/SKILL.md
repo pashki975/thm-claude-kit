@@ -25,6 +25,7 @@ Read what the room tells you before touching a tool:
   strongest signal. Read it first, every time.
 - Title — "Takeover" -> subdomain/DNS takeover. Names hint.
 - Task text — a domain name means DNS/vhost work; a downloadable file means offline analysis.
+- a .pcap / capture file       -> traffic analysis with tshark (/pcap)
 - Difficulty — "easy" usually means one technique, one insight. Don't over-engineer.
 Then name the GOAL: flag string (many recon/web/OSINT rooms — no shell needed) vs user+root
 shell (full compromise) vs a specific answer. Write it in notes.md before scanning.
@@ -39,6 +40,7 @@ the right first move. Signal -> first observation:
 - 88 + 389 + 445             -> Active Directory (/enum-ad)
 - 22 + a versioned service   -> version -> CVE lookup
 - a downloadable file        -> file/strings/exiftool/binwalk (/steg)
+- a .pcap / capture file       -> traffic analysis with tshark (/pcap)
 - "find the answer to..."    -> OSINT / careful reading
 
 ## Beat 3 — HYPOTHESIZE (say it before you test)
