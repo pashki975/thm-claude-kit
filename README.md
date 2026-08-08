@@ -89,6 +89,20 @@ you're flowing, and when you're stuck it drops into drive mode, reasons through 
 loud, and walks you through the next move in detail. The `thm-trainer` skill supplies the loop
 it coaches from.
 
+### The room brain: state tracking for complex rooms
+
+On a one-technique easy box the coach just runs the loop. Complex rooms are different — they're
+a *chain* (web foothold → creds in a config → pivot to an internal host → AD → privesc), where a
+finding three steps back is the key that unlocks the next move. To handle that, the coach treats
+`notes.md` as a **living state file — the "room brain"** — that it re-reads before every
+recommendation and rewrites after every result. It tracks: the goal, the **kill-chain position**
+(recon → foothold → lateral/pivot → privesc → domain), confirmed facts, **every credential/key
+held and where it works**, hosts discovered (reachable or pivot-only), open leads, and dead ends.
+That's what lets it reason about *logistics* — "we hold web-admin creds, we're at foothold, and
+there's a 3306 we haven't touched; those creds are probably reused on the DB" — instead of just
+reacting to the last command. `/notes` scaffolds the brain's structure; the coach keeps it
+current. On complex rooms, the quality of the brain is the quality of the coaching.
+
 ### Cheap vs heavy: scans are gated, not reflexive
 
 Enumeration commands split their steps into **cheap** (always worth it — read the page source,
@@ -179,8 +193,11 @@ root **is** tracked, and rooms still inherit it because `rooms/` sits underneath
 Point Claude at the room. `/start` is your playing coach for the whole room:
 
 ```
-/start https://tryhackme.com/room/<room>     # or paste the room description
+/start <paste the room's description + task text here, plus the target IP>
 ```
+
+> **Paste the room text, don't pass a URL.** TryHackMe rooms are behind auth, so Claude can't
+> fetch the page — give it the room's description/task text and the target IP directly.
 
 It does the setup (VPN check, `/etc/hosts` if there's a domain, seeds `notes.md`), classifies
 the room, names the goal (flag vs shell), then lays out the game plan and coaches you into the
@@ -371,7 +388,7 @@ if you reach it (full domain compromise), record flags in `notes.md`, and
 
 | Command            | Argument                   | Does                                                  |
 | ------------------ | -------------------------- | ----------------------------------------------------- |
-| `/start`           | room URL or description    | Playing coach: setup + teach you through the room step by step |
+| `/start`           | pasted room text + IP      | Playing coach: setup + teach you through the room step by step |
 | `/vpn-check`       | target IP                  | Verify VPN up + target reachable, show your tun0 IP   |
 | `/recon`           | target IP                  | Staged nmap (all ports → service scan), summarized    |
 | `/enum-udp`        | target IP                  | UDP top-ports + follow-up; full sweep gated to when it'll pay off |
