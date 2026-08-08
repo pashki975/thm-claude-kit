@@ -29,6 +29,7 @@ thm/
     │   ├── enum-udp.md     →  /enum-udp
     │   ├── enum-web.md     →  /enum-web
     │   ├── web-recon.md    →  /web-recon     (vhosts / subdomains / cert SANs)
+    │   ├── wp.md           →  /wp            (WordPress: wpscan + attack chain)
     │   ├── enum-smb.md     →  /enum-smb
     │   ├── db-enum.md      →  /db-enum
     │   ├── steg.md         →  /steg          (offline file/image analysis)
@@ -132,6 +133,8 @@ npm install -g @anthropic-ai/claude-code
 sudo apt install -y seclists enum4linux smbclient hashid john hashcat rlwrap exploitdb
 # For pcap analysis (/pcap):
 sudo apt install -y tshark
+# For WordPress rooms (/wp):
+sudo apt install -y wpscan
 # For UDP + database + pivoting commands:
 sudo apt install -y snmp onesixtyone tftp-hpa proxychains4 chisel mariadb-client postgresql-client redis-tools
 # ligolo-ng and mongosh aren't apt packages — grab ligolo-ng from GitHub releases,
@@ -394,6 +397,7 @@ if you reach it (full domain compromise), record flags in `notes.md`, and
 | `/enum-udp`        | target IP                  | UDP top-ports + follow-up; full sweep gated to when it'll pay off |
 | `/enum-web`        | URL                        | Reads source first; ffuf/nikto gated — skipped when low-yield  |
 | `/web-recon`       | domain or IP               | Vhost/subdomain fuzzing + cert SANs + takeover check  |
+| `/wp`              | WordPress URL              | wpscan enum → plugin CVEs / creds / wp-config loot     |
 | `/enum-smb`        | target IP                  | Null/guest share listing first; heavy enum gated      |
 | `/db-enum`         | IP type [creds]            | Connect + read schema first; brute/RCE steps gated    |
 | `/steg`            | file or dir                | Offline file/image analysis (metadata, embedded, LSB) |

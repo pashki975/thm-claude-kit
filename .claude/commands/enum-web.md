@@ -21,6 +21,10 @@ and I'll run the full ffuf/nikto anyway").
 1. Fetch the page and READ THE SOURCE — HTML comments, linked JS bundles, inline config,
    API paths referenced in the code. On a custom app this often hands you every real endpoint.
 2. `whatweb $ARGUMENTS` — fingerprint the tech stack (is this a known CMS or a bespoke app?)
+   - **If it fingerprints WordPress** (wp-content/, wp-login.php, `<meta name="generator"
+     content="WordPress ...">`), STOP the generic path and route to `/wp $ARGUMENTS` — WordPress
+     has its own tool (wpscan) and attack chain; the generic ffuf/nikto sweep is the wrong axis.
+     Note it in notes.md and hand off.
 3. Check the obvious files: robots.txt, sitemap.xml, /.git/, backups, /api/ paths named in source.
 
 ## HEAVY — gate each behind the hypothesis above
